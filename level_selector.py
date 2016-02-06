@@ -248,8 +248,8 @@ class MainBox:
         self.selected = None
         self.clevelbox = None
 
-        self.level_template = pygame.image.load("level_card.png")
-        self.world_template = pygame.image.load("world_label.png")
+        self.level_template = pygame.image.load("res/imgs/level_card.png")
+        self.world_template = pygame.image.load("res/imgs/world_label.png")
 
     def selectWorld(self, world):
         if self.selected != None:
@@ -327,7 +327,7 @@ def run():
     screen = pygame.display.set_mode((1080, 720))
     screen.fill([255,255,255])
     main = MainBox()
-    main.load("leveldat.json")
+    main.load("res/levels/leveldat.json")
 
 
     running = True

@@ -526,7 +526,7 @@ class MapButton(ButtonEvent):
     def __init__(self, map_size, tile_size, icon_size, button_size):
         
         self.tilemap = Map(map_size, tile_size, icon_size)
-        self.navi_image = pygame.image.load("navigator.png")
+        self.navi_image = pygame.image.load("res/imgs/navigator.png")
         #self.tilemap.im.loadTiles(pygame.image.load("reds.png"), 4, 1, "reds")
         #self.tilemap.im.loadTiles(pygame.image.load("blues.png"), 4, 1, "blues")
         #self.tilemap.im.loadTiles(pygame.image.load("greens.png"), 4, 1, "greens")
@@ -1262,7 +1262,7 @@ def run():
 
     def fixName(name):
         if not "." in name:
-            name = name + '.tmd'
+            name = "res/levels/" + name + '.tmd'
         return name
 
     def save(name):
@@ -1276,8 +1276,8 @@ def run():
         main.load(data)
         f.close()
                     
-    background = pygame.image.load("background.png")
-    main.loadImage("", "tiledat.res")
+    background = pygame.image.load("res/imgs/background.png")
+    main.loadImage("", "res/imgs/tiledat.res")
 
     running = True
     while running:

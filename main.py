@@ -6,7 +6,7 @@ def draw():
     screen.blit(background, [0,0])
     pygame.display.flip()
 
-background = pygame.image.load("start_menu.png")
+background = pygame.image.load("res/imgs/start_menu.png")
 draw()
 
 block_size = math.floor(background.get_height()/3)

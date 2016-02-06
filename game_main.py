@@ -10,19 +10,19 @@ class TileSizer:
         self.tile_height = height
 
 
-background = pygame.image.load("background.png")
+background = pygame.image.load("res/imgs/background.png")
 game = Game(1080, 720, TileSizer(32,32), 100, 100, background)
-game.tilemanager.loadTiles(pygame.image.load("blocks.png"), 5, 1, "blocks")
-game.tilemanager.loadTiles(pygame.image.load("turrets.png"), 4, 1, "turrets")
-game.tilemanager.loadTiles(pygame.image.load("background_tiles.png"), 4, 1, "background")
-game.tilemanager.loadTiles(pygame.image.load("doors.png"), 4, 2, "doors")
-game.tilemanager.loadTiles(pygame.image.load("buttons.png"), 10, 8, "buttons")
-game.entmanager.loadTiles(pygame.image.load("player.png"), 7, 2, "player")
-game.entmanager.loadImage(pygame.image.load("spikes.png"), "spikes")
-game.entmanager.loadTiles(pygame.image.load("bullet.png"), 3, 1, "bullet")
-game.entmanager.loadTiles(pygame.image.load("player_skull.png"), 2, 1, "player_skull")
-game.entmanager.loadTiles(pygame.image.load("laser_saw.png"), 5, 1, "saw")
-game.entmanager.loadTiles(pygame.image.load("locks.png"), 10, 1, "locks")
+game.tilemanager.loadTiles(pygame.image.load("res/imgs/blocks.png"), 5, 1, "blocks")
+game.tilemanager.loadTiles(pygame.image.load("res/imgs/turrets.png"), 4, 1, "turrets")
+game.tilemanager.loadTiles(pygame.image.load("res/imgs/background_tiles.png"), 4, 1, "background")
+game.tilemanager.loadTiles(pygame.image.load("res/imgs/doors.png"), 4, 2, "doors")
+game.tilemanager.loadTiles(pygame.image.load("res/imgs/buttons.png"), 10, 8, "buttons")
+game.entmanager.loadTiles(pygame.image.load("res/imgs/player.png"), 7, 2, "player")
+game.entmanager.loadImage(pygame.image.load("res/imgs/spikes.png"), "spikes")
+game.entmanager.loadTiles(pygame.image.load("res/imgs/bullet.png"), 3, 1, "bullet")
+game.entmanager.loadTiles(pygame.image.load("res/imgs/player_skull.png"), 2, 1, "player_skull")
+game.entmanager.loadTiles(pygame.image.load("res/imgs/laser_saw.png"), 5, 1, "saw")
+game.entmanager.loadTiles(pygame.image.load("res/imgs/locks.png"), 10, 1, "locks")
 game.addAnimationSet("player", AnimationSet(game.entmanager, ["walk_left:player,0,200;player,1,200;player,2,200;player,1,200",
                                                               "walk_right:player,11,200;player,10,200;player,9,200;player,10,200",
                                                               "stand_left:player,3,500;player,4,500",
@@ -77,6 +77,7 @@ game.addAnimationSet("button", AnimationSet(game.tilemanager, button_anisets))
 
 #game.loadLevel(pygame.image.load("map.png"), Level.IMAGE_LOAD)
 def run(mapname):
+    mapname = "res/levels/" + mapname
     game.reloadScreen()
     game.loadLevel(json.load(open(mapname)), Level.JSON_LOAD)
 

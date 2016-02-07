@@ -159,6 +159,11 @@ class LevelBox:
                     return level
         return None
 
+    def check(self, x, y):
+        if x >= self.x and y >= self.y and x < self.x + self.width and y < self.y + self.height:
+            return True
+        return False
+    
     def left_click(self, event, down):
         if down == False:
             level = self.getSelectedCard(event.x, event.y)
@@ -169,12 +174,12 @@ class LevelBox:
         return
 
     def scroll_up(self, event):
-        self.offset = max(0, min(self.height, self.offset - 5))
-        return
+        if self.check(event.x, event.y):
+            self.offset = max(0, min(self.height, self.offset - 5))
 
     def scroll_down(self, event):
-        self.offset = max(0, min(self.height, self.offset + 5))
-        return
+        if self.check(event.x, event.y):
+            self.offset = max(0, min(self.height, self.offset + 5))
 
     def draw(self, target, height):
         self.render()
@@ -212,6 +217,11 @@ class WorldBox:
             self.image.blit(card, [rx, ry])
         return self.image
 
+    def check(self, x, y):
+        if x >= self.x and y >= self.y and x < self.x + self.width and y < self.y + self.height:
+            return True
+        return False
+
     def getSelectedCard(self, x, y):
         x = x - self.x
         y = y - self.y
@@ -230,12 +240,12 @@ class WorldBox:
         return
 
     def scroll_up(self, event):
-        self.offset = max(0, min(self.height, self.offset + 5))
-        return
+        if self.check(event.x, event.y):
+            self.offset = max(0, min(self.height, self.offset + 5))
 
     def scroll_down(self, event):
-        self.offset = max(0, min(self.height, self.offset - 5))
-        return
+        if self.check(event.x, event.y):
+            self.offset = max(0, min(self.height, self.offset - 5))
 
 
     def draw(self, target, width):
@@ -244,6 +254,11 @@ class WorldBox:
 
 class MainBox:
     def __init__(self):
+        self.screen = pygame.display.set_mode((400, 700))
+        
+        self.lastworlddatafile = None
+        self.lastsavefile = None
+        
         self.worldbox = None
         self.selected = None
         self.clevelbox = None
@@ -258,11 +273,16 @@ class MainBox:
         self.selected = world
         self.clevelbox = world.levelbox
 
+    def reload(self):
+        self.load(self.lastworlddatafile, self.lastsavefile)
+        self.screen = pygame.display.set_mode((400, 700))
+
     def playLevel(self, level):
-        game_main.run(level.mapfile)
+        game_main.run(level.mapfile, level.name, self.selected.name)
+        self.reload()
 
     def createLevelBox(self, levels):
-        return LevelBox(self, 10, 110, levels, 8, self.level_template)
+        return LevelBox(self, 10, 110, levels, 3, self.level_template)
 
     def left_click(self, event, down):
         if self.worldbox != None:
@@ -288,46 +308,74 @@ class MainBox:
         if self.clevelbox != None:
             self.clevelbox.scroll_down(event)
 
-    def draw(self, target):
+    def draw(self):
         if self.worldbox != None:
-            self.worldbox.draw(target, target.get_width() - 20)
+            self.worldbox.draw(self.screen, self.screen.get_width() - 20)
         if self.clevelbox != None:
-            self.clevelbox.draw(target, target.get_height() - 110)
+            self.clevelbox.draw(self.screen, self.screen.get_height() - 110)
 
     def load(self, worlddatafile, savefile = None):
+        self.lastworlddatafile = worlddatafile
+        self.lastsavefile = savefile
         worlddata = json.load(open(worlddatafile))
         save = {}
         if savefile != None:
             save = json.load(open(savefile))
 
+        worldorder = None
         worlds = []
         for worldname in worlddata.keys():
-            levels = []
-            leveldata = worlddata[worldname]
-            for levelname in leveldata.keys():
-                info = leveldata[levelname]
-                mapname = info[0]
-                gbraw = info[1].split(",")
-                gb = []
-                for i in range(len(gbraw)):
-                    gb.append(int(gbraw[i]))
+            if worldname == "WORLD_ORDER":
+                worldorder = worlddata[worldname]
+            else:
+                levels = []
+                leveldata = worlddata[worldname]
+                levelorder = None
+                for levelname in leveldata.keys():
+                    if levelname == "LEVEL_ORDER":
+                        levelorder = leveldata[levelname]
+                    else:
+                        info = leveldata[levelname]
+                        mapname = info[0]
+                        gbraw = info[1].split(",")
+                        gb = []
+                        for i in range(len(gbraw)):
+                            gb.append(int(gbraw[i]))
 
-                recordname = worldname + ":::" + levelname
-                record = None
-                if recordname in save.keys():
-                    record = int(save[recordname])
-                level = LevelLS(levelname, mapname, gb, record)
-                levels.append(level)
-            worlds.append(WorldLS(self, worldname, levels))
+                        recordname = worldname + ":::" + levelname
+                        record = None
+                        if recordname in save.keys():
+                            record = int(save[recordname])
+                        level = LevelLS(levelname, mapname, gb, record)
+                        levels.append(level)
+                if levelorder != None:
+                    nlevels = list(levels)
+                    for i in range(len(levelorder)):
+                        levelname = levelorder[i]
+                        for level in levels:
+                            if level.name == levelname:
+                                nlevels[i] = level
+                                break
+                    levels = nlevels
+                worlds.append(WorldLS(self, worldname, levels))
 
+        if worldorder != None:
+            nworlds = list(worlds)
+            for i in range(len(worldorder)):
+                worldname = worldorder[i]
+                for world in worlds:
+                    if world.name == worldname:
+                        nworlds[i] = world
+                        break
+            worlds = nworlds
         self.worldbox = WorldBox(self, 10, 10, worlds, self.world_template)
         self.selectWorld(self.worldbox.worlds[0])
 
 def run():
-    screen = pygame.display.set_mode((1080, 720))
-    screen.fill([255,255,255])
     main = MainBox()
-    main.load("res/levels/leveldat.json")
+    main.screen.fill([255,255,255])
+    
+    main.load("res/levels/leveldat.json", "res/levels/save.jsv")
 
 
     running = True
@@ -358,6 +406,6 @@ def run():
                     main.scroll_up(event)
                 elif event.button == 5:
                     main.scroll_down(event)
-        screen.fill([255,255,255])
-        main.draw(screen)
+        main.screen.fill([255,255,255])
+        main.draw()
         pygame.display.flip()

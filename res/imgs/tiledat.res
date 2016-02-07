@@ -6,3 +6,4 @@ spawn:res/imgs/spawn.png:1:1
 saw_block:res/imgs/saw_block.png:1:1
 door:res/imgs/doors_icons.png:2:2
 button:res/imgs/buttons.png:10:8
+flag:res/imgs/flags.png:2:1

@@ -1,7 +1,10 @@
 {
-	"testworld1":{ "level1":["maptest.tmd", "5000,10000,20000,30000,50000"],
+	"WORLD_ORDER":["testworld1","testworld2"],
+	"testworld1":{ "LEVEL_ORDER":["level1","level2","level3"],
+				   "level1":["maptest.tmd", "5000,10000,20000,30000,50000"],
 				   "level2":["maptest.tmd", "1000,2000,3000,5000"],
 				   "level3":["maptest.tmd", "7000,20000"]},
-	"testworld2":{ "level1":["maptest.tmd", "10000,50000,100000"],
+	"testworld2":{ "LEVEL_ORDER":["level1","level test"],
+				   "level1":["maptest.tmd", "10000,50000,100000"],
 				   "level test":["maptest.tmd", "1000,5000,10000"] }
 }

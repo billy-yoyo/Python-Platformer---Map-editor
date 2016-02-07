@@ -720,8 +720,9 @@ class MapButton(ButtonEvent):
                     self.new()
         
         if self.mmb_down and self.cds.check("navigate"):
-            diffx = (event.pos[0] - self.mmb_start[0]) / 10
-            diffy = (event.pos[1] - self.mmb_start[1]) / 10
+            mpos = pygame.mouse.get_pos()
+            diffx = (mpos[0] - self.mmb_start[0]) / 10
+            diffy = (mpos[1] - self.mmb_start[1]) / 10
             self.offset = [ self.offset[0] + diffx, self.offset[1] + diffy ]
             self.cds.start()
             self.change = True
@@ -1163,7 +1164,7 @@ class TextBox(ButtonEvent):
             self.cds.stop()
             self.cds.start("back")
         elif self.bdown and self.cds.check("back"):
-            self.backspace()
+            self.backspace(button)
             self.cds.start()
 
     def draw(self, button, screen):
@@ -1187,6 +1188,24 @@ def findButton(name):
         if button.name == name:
             return button
     return None
+
+def fixName(name):
+    name = "res/levels/" + name
+    if not "." in name:
+        name = name + '.tmd'
+    return name
+
+def save(name):
+    f = open(fixName(name), 'w')
+    json.dump(main.tilemap.pack_info(), f)
+    f.close()
+
+def load(name):
+    f = open(fixName(name))
+    data = json.load(f)
+    main.load(data)
+    f.close()
+
 #tile_select @ [20, 200], size: [64, 500]
 #id_select @ [124, 200], size: [64, 500]
 #layer_down @ [1, 155], size: [15, 23]
@@ -1260,21 +1279,7 @@ def run():
     focus = main
     popup_font = pygame.font.SysFont("Georgia-Italic", 18)
 
-    def fixName(name):
-        if not "." in name:
-            name = "res/levels/" + name + '.tmd'
-        return name
-
-    def save(name):
-        f = open(fixName(name), 'w')
-        json.dump(main.tilemap.pack_info(), f)
-        f.close()
-
-    def load(name):
-        f = open(fixName(name))
-        data = json.load(f)
-        main.load(data)
-        f.close()
+    
                     
     background = pygame.image.load("res/imgs/background.png")
     main.loadImage("", "res/imgs/tiledat.res")
@@ -1302,7 +1307,7 @@ def run():
                     mapname = "TEMP_MAP_MAPEDITOR.temp"
                     save(mapname)
                     game_main.run(mapname)
-                    os.remove(mapname)
+                    os.remove("res/levels/"+mapname)
                     screen = pygame.display.set_mode((1080, 720))
             elif event.type == pygame.KEYUP:
                 for button in buttons:

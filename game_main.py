@@ -23,6 +23,7 @@ game.entmanager.loadTiles(pygame.image.load("res/imgs/bullet.png"), 3, 1, "bulle
 game.entmanager.loadTiles(pygame.image.load("res/imgs/player_skull.png"), 2, 1, "player_skull")
 game.entmanager.loadTiles(pygame.image.load("res/imgs/laser_saw.png"), 5, 1, "saw")
 game.entmanager.loadTiles(pygame.image.load("res/imgs/locks.png"), 10, 1, "locks")
+game.entmanager.loadTiles(pygame.image.load("res/imgs/flags.png"), 2, 1, "flags")
 game.addAnimationSet("player", AnimationSet(game.entmanager, ["walk_left:player,0,200;player,1,200;player,2,200;player,1,200",
                                                               "walk_right:player,11,200;player,10,200;player,9,200;player,10,200",
                                                               "stand_left:player,3,500;player,4,500",
@@ -59,6 +60,9 @@ game.addAnimationSet("door", AnimationSet(game.tilemanager, ["closed_0:doors,4,1
                                                              "open_3:doors,1,100"]))
 game.addAnimationSet("lock", AnimationSet(game.entmanager, ["0:locks,0,100", "1:locks,1,100", "2:locks,2,100", "3:locks,3,100", "4:locks,4,100",
                                                              "5:locks,5,100", "6:locks,6,100", "7:locks,7,100", "8:locks,8,100", "9:locks,9,100"]))
+game.addAnimationSet("checkpoint", AnimationSet(game.entmanager, ["on:flags,0,100"]))
+game.addAnimationSet("finishline", AnimationSet(game.entmanager, ["on:flags,1,100"]))
+
 button_anisets = []
 for direction in range(4):
     row = 0
@@ -76,16 +80,16 @@ game.addAnimationSet("button", AnimationSet(game.tilemanager, button_anisets))
                                                                
 
 #game.loadLevel(pygame.image.load("map.png"), Level.IMAGE_LOAD)
-def run(mapname):
+def run(mapname, levelname = None, worldname = None):
     mapname = "res/levels/" + mapname
     game.reloadScreen()
-    game.loadLevel(json.load(open(mapname)), Level.JSON_LOAD)
+    game.loadLevel(levelname, worldname, json.load(open(mapname)), Level.JSON_LOAD)
 
     fps_timer = pygame.time.get_ticks()
     cur_frames = 0
     last_tick = pygame.time.get_ticks()
     running = True
-    while running:
+    while running and not game.finished:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False

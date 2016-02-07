@@ -20,7 +20,6 @@ while main_running:
         elif event.type == pygame.MOUSEBUTTONUP:
             mpos = pygame.mouse.get_pos()
             button = math.floor(mpos[1] / block_size)
-            print(button)
             if button == 0: #play game
                 level_selector.run()
                 draw()

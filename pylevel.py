@@ -1,4 +1,4 @@
-import math, pygame, pycol, pyani, random
+import math, pygame, pycol, pyani, random, json
 from pycol import *
 from pyani import *
 
@@ -50,6 +50,38 @@ class Entity(Block):
         rx = self.x - offset.x
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx,ry])
+
+class Checkpoint(Block):
+    def __init__(self, world, x, y, width, height, aniset, entmanager):
+        Block.__init__(self, world, x, y, width, height, world.nextID())
+        self.aniset = aniset.loop("on")
+        self.em = entmanager
+
+        self.solid = False
+        self.updateChunks()
+
+    def get_type(self):
+        return "checkpoint"
+
+    def get_priority(self):
+        return 3
+
+    def update(self, elapsed):
+        if self.world.checkArea(self.x, self.y, self.width, self.height, [], True, ["player"]):
+            self.world.setSpawn(self)
+
+    def draw(self, target, offset):
+        rx = self.x - offset.x
+        ry = self.y - offset.y
+        target.blit(self.aniset.get(), [rx,ry])
+
+class FinishLine(Checkpoint):
+    def __init__(self, world, x, y, width, height, aniset, entmanager):
+        Checkpoint.__init__(self, world, x, y, width, height, aniset, entmanager)
+
+    def update(self, elapsed):
+        if self.world.checkArea(self.x, self.y, self.width, self.height, [], True, ["player"]):
+            self.world.finish()
 
 class Trap(Block):
     def __init__(self, world, x, y, width, height, aniset, entmanager, damage = 1):
@@ -334,7 +366,7 @@ class Skull(Block):
         return "skull"
 
     def get_priority(self):
-        return 3
+        return 4
 
     def updateVelX(self):
         self.acc.x = -self.vel.x
@@ -462,7 +494,7 @@ class Player(Entity, Hook):
         self.facing_left = True
 
     def get_priority(self):
-        return 4
+        return 5
 
     def get_type(self):
         return "player"
@@ -603,8 +635,14 @@ class Game:
         self.height = height
         self.background = background
         self.level = None
+        self.level_name = None
+        self.world_name = None
 
         self.hooks = {}
+        self.paused = False
+        self.finished = False
+
+        self.game_time = 0
 
     def reloadScreen(self):
         self.screen = pygame.display.set_mode((self.width, self.height))
@@ -615,7 +653,9 @@ class Game:
     def getAniSet(self, name):
         return self.anisets[name].copy()
 
-    def loadLevel(self, load_dat, load_type, set_level = True):
+    def loadLevel(self, level_name, world_name, load_dat, load_type, set_level = True):
+        self.level_name = level_name
+        self.world_name = world_name
         level = Level(self, load_dat, self.chunk_width, self.chunk_height, load_type)
         if set_level:
             self.setLevel(level)
@@ -624,6 +664,24 @@ class Game:
     def setLevel(self, level):
         self.level = level
         self.level.display = self.screen
+
+    def save(self, timer):
+        timer = math.floor(timer * 1000)
+        if self.level_name != None and self.world_name != None:
+            savename = self.world_name + ":::" + self.level_name
+            
+            f = open('res/levels/save.jsv')
+            data = json.load(f)
+            f.close()
+            override = True
+            if savename in data.keys():
+                if savename[data] < timer:
+                    override = False
+            if override:
+                data[self.world_name + ":::" + self.level_name] = timer
+                f = open('res/levels/save.jsv', 'w')
+                json.dump(data, f)
+                f.close()
 
     def getWidth(self):
         return self.screen.get_width()
@@ -634,7 +692,7 @@ class Game:
     def tick(self, elapsed):
         self.screen.fill([255,255,255])
         #self.screen.blit(self.background, [0,0])
-        self.level.tick(elapsed)
+        self.level.tick(elapsed, self.paused)
         pygame.display.flip()
 
     def addHook(self, hook, eventtypes):
@@ -644,6 +702,11 @@ class Game:
             if not eventtype in self.hooks.keys():
                 self.hooks[eventtype] = []
             self.hooks[eventtype].append(hook)
+
+    def destroyHook(self, hook):
+        for eventtype in self.hooks.keys():
+            if hook in self.hooks[eventtype]:
+                self.hooks[eventtype].remove(hook)
 
     def call(self, event):
         if event.type in self.hooks.keys():
@@ -662,6 +725,9 @@ class Level(World):
         self.game = game
         self.skulls = []
         self.skull_limit = 3
+        self.level_timer = 0
+        self.spawn = None
+        self.spawn_tile = None
         self.restart()
 
     def killPlayer(self):
@@ -675,6 +741,11 @@ class Level(World):
             new_skulls[self.skull_limit-1] = Skull(self, self.player.x+5, self.player.y+1, 11, 12, self.game.getAniSet("player_skull"), self.player.vel, self.player.facing_left)
             self.skulls = new_skulls
         self.restart()
+
+    def finish(self):
+        self.game.paused = True
+        self.game.finished = True
+        self.game.save(self.level_timer)
 
     def addDoor(self, door):
         if not door.doorid in self.doors:
@@ -721,9 +792,25 @@ class Level(World):
         for skull in self.skulls:
             skull.updateChunks()
         self.state = 1
+        self.respawn()
 
+    def setSpawn(self, spawn_tile):
+        if spawn_tile != self.spawn_tile:
+            self.spawn = [self.player.x, self.player.y, self.player.vel, self.player.acc]
+            self.spawn_tile = spawn_tile
+    
+    def respawn(self):
+        if self.spawn != None:
+            if self.player != None:
+                self.game.destroyHook(player)
+                self.player.destroy()
+            self.player = Player(self, self.spawn[0], self.spawn[1], 22, 22, self.game.getAniSet("player"), self.game.entmanager)
+            self.game.addHook(self.player, pygame.KEYDOWN)
+            if len(self.spawn) > 2:
+                self.player.vel = self.spawn[2]
+                self.player.acc = self.spawn[3]
+    
     def load_image(self, map_image):
-        print(self.game.tilemanager.tile_width,":",self.game.tilemanager.tile_height)
         for x in range(map_image.get_width()):
             for y in range(map_image.get_height()):
                 colour = map_image.get_at((x,y))
@@ -734,7 +821,8 @@ class Level(World):
                 elif colour[0] == 0 and colour[1] == 255 and colour[2] == 0:
                     Wall(self, x, y, self.game.getAniSet("green_block"), self.game.tilemanager, 2)
                 elif colour[0] == 0 and colour[1] == 0 and colour[2] == 255:
-                    self.player = Player(self, x*self.game.tilemanager.tile_width, y*self.game.tilemanager.tile_height, 22, 22, self.game.getAniSet("player"), self.game.entmanager)
+                    if self.spawn == None:
+                        self.spawn = [x, y]
                 elif colour[0] == 100 and colour[1] == 100 and colour[2] == 100:
                     Spike(self, x*self.game.tilemanager.tile_width, (y*self.game.tilemanager.tile_height)+(self.game.tilemanager.tile_height  - 19), 32, 19, self.game.getAniSet("spike"), self.game.entmanager)
                 elif colour[0] == 255 and colour[1] >= 205 and colour[2] <= 3:
@@ -774,7 +862,9 @@ class Level(World):
                                         else: #green
                                             Wall(self, x, y, self.game.getAniSet("green_block"), self.game.tilemanager, 2)
                                     elif iname == "spawn":
-                                        self.player = Player(self, x*self.game.tilemanager.tile_width, y*self.game.tilemanager.tile_height, 22, 22, self.game.getAniSet("player"), self.game.entmanager)
+                                        #self.player = Player(self, x*self.game.tilemanager.tile_width, y*self.game.tilemanager.tile_height, 22, 22, self.game.getAniSet("player"), self.game.entmanager)
+                                        if self.spawn == None:
+                                            self.spawn = [x*self.game.tilemanager.tile_width, y*self.game.tilemanager.tile_height]
                                     elif iname == "spikes":
                                         Spike(self, x*self.game.tilemanager.tile_width, (y*self.game.tilemanager.tile_height)+(self.game.tilemanager.tile_height  - 19), 32, 19, self.game.getAniSet("spike"), self.game.entmanager)
                                     elif iname == "turrets":
@@ -820,16 +910,24 @@ class Level(World):
                                         if "button lock" in info:
                                             button_lock = bool(info["button lock"])
                                         Button(self, x, y, self.game.getAniSet("button"), self.game.tilemanager, direction, doorid, button_lock)
+                                    elif iname == "flag":
+                                        if iid == 0:
+                                            Checkpoint(self, x * self.game.tilemanager.tile_width + 8, y * self.game.tilemanager.tile_height + 6, 16, 26, self.game.getAniSet("checkpoint"), self.game.entmanager)
+                                        elif iid == 1:
+                                            FinishLine(self, x * self.game.tilemanager.tile_width + 8, y * self.game.tilemanager.tile_height + 6, 16, 26, self.game.getAniSet("finishline"), self.game.entmanager)
                                     else:
                                         BackgroundTile(self, x, y, self.game.getAniSet("background"), self.game.tilemanager, iid)
 
-    def tick(self, elapsed):
+    def tick(self, elapsed, paused):
         #blockset = self.player.get_blocks()
         #blockset.append(self.player)
         for i in range(self.max_priority+1):
             if i in self.blocks.keys():
                 block_list = self.blocks[i]
                 for block in block_list:
-                    if block.update(elapsed) == True:
-                        break
+                    if not paused:
+                        if block.update(elapsed) == True:
+                            break
                     block.draw(self.game.screen, self.offset)
+        if not paused:
+            self.level_timer += elapsed

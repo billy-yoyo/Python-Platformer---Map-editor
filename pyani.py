@@ -9,24 +9,6 @@ import pygame, math
 #
 #   icon-system creates an icon of a certain size for every image loaded and saves them. Is used in editor_main.py
 #
-#   icon functions:
-#       getIcon(index)
-#           - returns the icon with the given index
-#       iconAmount()
-#           - returns the amount of icons in the image manager
-#       icondIdAmount
-#           - returns the number of icon id's
-#       getIdIcon(name, index)
-#           - returns an icon with a name and an index
-#       createIcon(name)
-#           - creates an icon version of the image stored as name.
-#
-#   loading function:
-#       loadImage(image, name, alpha = True)
-#           - saves the image under "name", if alpha is true the alpha channel will be enabled
-#       loadTiles(image, columns, rows, name, alpha = True)
-#           - converts the image in to a set of images (row x column images) then saves them all under name, if alpha is true the alpha channel will be enabled
-#       
 class ImageManager:
     def __init__(self, tilemap = None, iconsize = None): #tilemap anything with variables tile_width and tile_height
         self.tilemap = tilemap
@@ -53,24 +35,29 @@ class ImageManager:
     def tile_height(self, new_tile_height):
         self.tilemap.tile_height = new_tile_height
 
+    #returns the icon with the given index
     def getIcon(self, index):
         if index < self.iconAmount() and index >= 0:
             return self.icons[index]
         return None
 
+    #returns the amount of icons
     def iconAmount(self):
         return len(self.icons)
 
+    #return the amount if icon ids
     def iconIdAmount(self, name):
         if name != None:
             return len(self.id_icons[name])
         return 0
 
+    #return an icon with a name and an index
     def getIdIcon(self, name, index):
         if name != None and index >= 0 and index < self.iconIdAmount(name):
             return self.id_icons[name][index]
         return None
 
+    #creates and stores and icon for an image stored under 'name'
     def createIcon(self, name):
         if self.iconsize != None:
             image = self.images[name][0]
@@ -84,6 +71,7 @@ class ImageManager:
                 idicons.append(pygame.transform.scale(self.images[name][i], self.iconsize))
             self.id_icons[name] = idicons
 
+    #stores 'image' under 'name', if alpha is true the alpha channel is enabled
     def loadImage(self, image, name, alpha = True):
         if alpha:
             image = image.convert_alpha()
@@ -94,6 +82,7 @@ class ImageManager:
         self.images[name] = [image]
         self.createIcon(name)
 
+    #splits 'image' into a grid with the given columns and rows, then stores them all under 'name'. if alpha is true the alpha channel is enabled
     def loadTiles(self, image, columns, rows, name, alpha = True):
         image = image.convert_alpha()
         tile_width = math.floor(image.get_width()/columns)
@@ -117,6 +106,7 @@ class ImageManager:
         self.images[name] = images
         self.createIcon(name)
 
+    #loads a resource file detailing the location, name and dimensions of images to load. 
     def loadResourceFile(self, name):
         f = open(name)
         line = f.readline()
@@ -136,6 +126,7 @@ class ImageManager:
                     print(" INVALID LINE FOUND IN " + name)
             line = f.readline()
 
+    #checks the dimensions of the image and scales them to the required tile size if tilemap exists
     def checkScale(self, image):
         if self.tilemap == None:
             return True
@@ -143,6 +134,7 @@ class ImageManager:
             return False
         return True
 
+    #gets the image under 'name'
     def get(self, name, imgid = 0):
         if name != None and imgid != None:
             img = self.images[name][imgid]
@@ -151,20 +143,23 @@ class ImageManager:
                 self.images[name][imgid] = img
             return img
 
+    #slightly different version of get, which takes a tile object instead. Not really used here.
     def getTileImage(self, tile):
         return self.getImage(tile.info["img_name"], tile.info["img_id"])
 
-
+#small helper class for handling cooldowns
 class Cooldowns:
     def __init__(self):
         self.cooldowns = {}
         self.last_used = ""
 
+    #creates a cooldown under 'name' with the given length
     def create(self, name, length):
         self.last_used = name
         self.cooldowns[name] = [length, -1]
         return self
 
+    #starts the cooldown, if no name is given the last name used in any of the functions will be used instead
     def start(self, name = None):
         if name == None:
             name = self.last_used
@@ -174,6 +169,7 @@ class Cooldowns:
         self.cooldowns[name][1] = pygame.time.get_ticks()
         return self
 
+    #stops the cooldown, if no name is given the last name used in any of the functions will be used instead
     def stop(self, name = None):
         if name == None:
             name = self.last_used
@@ -183,6 +179,7 @@ class Cooldowns:
         self.cooldowns[name][1] = -1
         return self
 
+    #checks if the cooldown has finished, if no name is given the last name used in any of the functions will be used instead
     def check(self, name = None):
         if name == None:
             name = self.last_used
@@ -194,6 +191,7 @@ class Cooldowns:
             return True
         return False
 
+    #offsets the cooldown (speeding/slowing it), if no name is given the last name used in any of the functions will be used instead
     def offset(self, offset, name = None):
         if name == None:
             name = self.last_used
@@ -203,6 +201,7 @@ class Cooldowns:
         self.cooldowns[name][1] += offset
         return self
 
+    #how long has elapsed since the cooldown was started, if no name is given the last name used in any of the functions will be used instead
     def elapsed(self, name = None):
         if name == None:
             name = self.last_used
@@ -211,8 +210,12 @@ class Cooldowns:
 
         return pygame.time.get_ticks() - self.cooldowns[name][1]
 
-
+#animation class
 class Animation:
+    #imagemanager is an ImageManager class which contains the images for the animation
+    #images is an array of images
+    #frametimes is an array of frametimes, these two arrays correspond to each other
+    #loop is whether or not the animation should loop by default
     def __init__(self, imagemanager, images, frametimes, loop = False):
         self.im = imagemanager
         self.images = images
@@ -221,6 +224,7 @@ class Animation:
         self.last_tick = -1
         self.loop = loop
 
+    #gets the current frame
     def get(self):
         if self.last_tick > 0:
             stop = False
@@ -238,24 +242,32 @@ class Animation:
                 self.last_tick = pygame.time.get_ticks() - elapsed
         return self.im.get(*self.images[self.frame])
 
+    #starts the animation
     def start(self):
         self.last_tick = pygame.time.get_ticks()
         return self
 
+    #pauses the animation
     def pause(self):
         self.last_tick = -1
         return self
 
+    #restarts the animation
     def restart(self):
         self.frame = 0
         self.last_tick = pygame.time.get_ticks()
         return self
 
+    #sets wether or not the animation should loop (otherwise it will just stop once its done)
     def setLoop(self, loop):
         self.loop = loop
         return self
 
+#class for containing multiple animations
+#uses the same name system as cooldown (remembers the last one used)
 class AnimationSet:
+    #imagemanager is the ImageManager the animations will find their images in
+    #info is an array of strings detailing the animations
     def __init__(self, imagemanager, info):
         self.im = imagemanager
         self.info = info
@@ -273,9 +285,11 @@ class AnimationSet:
             self.animations[name] = Animation(imagemanager, images, frametimes)
         self.cur = None
 
+    #copys the animation set to a new one
     def copy(self):
         return AnimationSet(self.im, self.info)
 
+    #plays an animationo once
     def play(self, name = None):
         if name != None:
             self.cur = self.animations[name]
@@ -283,6 +297,7 @@ class AnimationSet:
         self.cur.start()
         return self
 
+    #loops an animation until told to do something else
     def loop(self, name = None):
         should_start = False
         if name != None:
@@ -294,17 +309,20 @@ class AnimationSet:
             self.cur.start()
         return self
 
+    #restarts an animation
     def restart(self, name = None):
         if name != None:
             self.cur = self.animations[name]
         self.cur.restart()
         return self
 
+    #pauses an animation
     def pause(self, name = None):
         if name != None:
             self.cur = self.animations[name]
         return self
 
+    #gets the current frame for the animation set.
     def get(self):
         if self.cur != None:
             return self.cur.get()

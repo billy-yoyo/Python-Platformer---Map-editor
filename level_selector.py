@@ -1,6 +1,9 @@
 import pygame, math, json, game_main
 pygame.init()
 
+#fits text in to the given bounds.
+#fontname, bold, italic detail the font to be used
+#centre_x, centre_y determine if the text should be centered along the x and y axis respectively
 def fitLabel(text, colour, bounds, fontname, bold = False, italic = False, centre_x = True, centre_y = True):
     fontsize = 5
     font = pygame.font.SysFont(fontname, fontsize, bold, italic)
@@ -19,6 +22,7 @@ def fitLabel(text, colour, bounds, fontname, bold = False, italic = False, centr
         offset[1] += math.floor((bounds[3] - size[1]) / 2)
     return [font.render(text, 2, colour), offset]
 
+#level selector world, contains a list of levels 
 class WorldLS:
     def __init__(self, main, name, levels):
         self.name = name
@@ -28,6 +32,7 @@ class WorldLS:
         self.card = None
         self.selected = False
 
+    #gets the card for the world, if no card exists uses createCard() to create one then returns it
     def getCard(self, template):
         if self.card == None:
             self.createCard(template)
@@ -38,6 +43,7 @@ class WorldLS:
             card.blit(self.card, [0,0])
         return card
 
+    #creates a card for the world (renders the world information on to the template)
     def createCard(self, template):
         self.card = pygame.Surface((template.get_width()+10, template.get_height()+10)).convert_alpha()
         self.card.fill([0,0,0,0])
@@ -45,7 +51,12 @@ class WorldLS:
         name_bounds = [7, 37, 76, 16]
         self.card.blit(*fitLabel(self.name, [0, 0, 0], name_bounds, "impact"))
 
+#level selector level, contains information about a level (your best time and where to find the level)
 class LevelLS:
+    #name is the name of the level
+    #mapfile is where the level's file can be found
+    #grade_boundaries detailes the time required for different grades
+    #record is the best time the player has achieved on that level
     def __init__(self, name, mapfile, grade_boundaries, record):
         self.name = name
         self.gb = grade_boundaries
@@ -63,6 +74,7 @@ class LevelLS:
 
         self.card = None
 
+    #gets the players grade on that level (uses grade_bounadries and record)
     def getGrade(self):
         if self.grade != None:
             grades = "SABCDF"
@@ -79,6 +91,7 @@ class LevelLS:
             return grades[max(0, min(5, self.grade))]
         return "-"
 
+    #gets the string version of the record (from milliseconds in to minutes:seconds:milliseconds format)
     def getRecordText(self):
         if self.record != None:
             seconds = math.floor(self.record / 1000)
@@ -101,11 +114,13 @@ class LevelLS:
             return strminutes + ":" + strseconds + ":" + strmilsec
         return "??:??:??"
 
+    #gets the card for the level (see WorldLS.getCard())
     def getCard(self, template):
         if self.card == None:
             self.createLevelCard(template)
         return self.card
 
+    #creates the card for the level (see WorldLS.createCard())
     def createLevelCard(self, template):
         self.card = template.copy()
         levelname_box = [3, 3, 114, 31]
@@ -116,7 +131,11 @@ class LevelLS:
         self.card.blit(*fitLabel(self.getRecordText(), [0,0,0], record_box, "tahoma"))
         self.card.blit(*fitLabel(self.getGrade(), [0,0,0], grade_box, "impact", False, True))
 
+#interface box containing all the level cards for the selected world
 class LevelBox:
+    #main is the MainBox, x, y are the coordinates of the interface box,
+    #levels is the list of levels to get the level cards from, columns is the amount of columns
+    #to render, see WorldLS.createCard() for an explanation of templates
     def __init__(self, main, x, y, levels, columns, level_template):
         self.x = x
         self.y = y
@@ -133,6 +152,7 @@ class LevelBox:
         
         self.render()
 
+    #renders all the cards on to an image
     def render(self):
         self.image.fill([0,0,0,0])
         for i in range(len(self.levels)):
@@ -145,6 +165,7 @@ class LevelBox:
             self.image.blit(card, [rx, ry])
         return self.image
 
+    #finds which card is selected
     def getSelectedCard(self, x, y):
         x = x - self.x
         y = y - self.y
@@ -159,11 +180,13 @@ class LevelBox:
                     return level
         return None
 
+    #checks if x,y collides with the interface box
     def check(self, x, y):
         if x >= self.x and y >= self.y and x < self.x + self.width and y < self.y + self.height:
             return True
         return False
-    
+
+    #checks for a card selection
     def left_click(self, event, down):
         if down == False:
             level = self.getSelectedCard(event.x, event.y)
@@ -173,10 +196,12 @@ class LevelBox:
     def right_click(self, event, down):
         return
 
+    #scrolls up
     def scroll_up(self, event):
         if self.check(event.x, event.y):
             self.offset = max(0, min(self.height, self.offset - 5))
 
+    #scrolls down
     def scroll_down(self, event):
         if self.check(event.x, event.y):
             self.offset = max(0, min(self.height, self.offset + 5))
@@ -185,7 +210,10 @@ class LevelBox:
         self.render()
         target.blit(self.image, [self.x, self.y], [0, self.offset, self.width, height])
 
+#interface box containing all the world cards
 class WorldBox:
+    #main is the MainBox, x,y are the coordinates of the interface box,
+    #worlds is the list of worlds to get the cards from, see WorldLS.createCard() for an explanation of templates
     def __init__(self, main, x, y, worlds, world_template):
         self.main = main
         self.x = x
@@ -199,12 +227,14 @@ class WorldBox:
         self.world_template = world_template
         self.render()
 
+    #adds a world to the list of worlds
     def addWorld(self, world):
         self.worlds.append(world)
         self.width = (len(worlds) * 80) + ( (len(worlds)-1) * 10)
         self.image = pygame.Surface((self.width, self.height)).convert_alpha()
         self.render()
 
+    #renders the cards on to an image
     def render(self):
         self.image = pygame.Surface((self.width, self.height)).convert_alpha()
         self.image.fill([0,0,0,0])
@@ -217,11 +247,13 @@ class WorldBox:
             self.image.blit(card, [rx, ry])
         return self.image
 
+    #checks for collisions between x,y and the interface box
     def check(self, x, y):
         if x >= self.x and y >= self.y and x < self.x + self.width and y < self.y + self.height:
             return True
         return False
 
+    #tries to find the selected card
     def getSelectedCard(self, x, y):
         x = x - self.x
         y = y - self.y
@@ -252,6 +284,7 @@ class WorldBox:
         self.render()
         target.blit(self.image, [self.x, self.y], [self.offset, 0, width, self.height])
 
+#interface box containing the whole interface
 class MainBox:
     def __init__(self):
         self.screen = pygame.display.set_mode((400, 700))
@@ -266,6 +299,7 @@ class MainBox:
         self.level_template = pygame.image.load("res/imgs/level_card.png")
         self.world_template = pygame.image.load("res/imgs/world_label.png")
 
+    #changes which world is currently selected
     def selectWorld(self, world):
         if self.selected != None:
             self.selected.selected = False
@@ -273,14 +307,17 @@ class MainBox:
         self.selected = world
         self.clevelbox = world.levelbox
 
+    #reloads the level selector
     def reload(self):
         self.load(self.lastworlddatafile, self.lastsavefile)
         self.screen = pygame.display.set_mode((400, 700))
 
+    #plays the level (game_main.run())
     def playLevel(self, level):
         game_main.run(level.mapfile, level.name, self.selected.name)
         self.reload()
 
+    #creates a level box for the list of levels
     def createLevelBox(self, levels):
         return LevelBox(self, 10, 110, levels, 3, self.level_template)
 
@@ -314,6 +351,7 @@ class MainBox:
         if self.clevelbox != None:
             self.clevelbox.draw(self.screen, self.screen.get_height() - 110)
 
+    #loads the level selection information (records, level information and world information)
     def load(self, worlddatafile, savefile = None):
         self.lastworlddatafile = worlddatafile
         self.lastsavefile = savefile

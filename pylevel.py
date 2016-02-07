@@ -2,12 +2,17 @@ import math, pygame, pycol, pyani, random, json
 from pycol import *
 from pyani import *
 
-
+#simple class for hooking objects to events
 class Hook:
     def call(self, event):
         return
 
+#see pycol.Block for an explanation of the Block class
+#see pyani.AnimationSet for an explanation of animation sets
+#base Tile class for the map, essentially the same as Block but introduces animation sets and uses a imagemanager with a tilesize given (see pyani.ImageManager)
 class Tile(Block):
+    #aniset is the AnimationSet for that tile
+    #tilemanager is the imagemanager for aniset (used for keeping track of tile_width and tile_height)
     def __init__(self, world, x, y, aniset, tilemanager, tileid = 0):
         self.tx = x
         self.ty = y
@@ -17,9 +22,11 @@ class Tile(Block):
         Block.__init__(self, world, x * self.tm.tile_width, y * self.tm.tile_height, self.tm.tile_width, self.tm.tile_height, world.nextID())
         self.updateChunks()
 
+    #see Block class
     def get_type(self):
         return "tile"
 
+    #updates the size of the block to keep in line with tile_width and tile_height
     def updateSize(self):
         self.x = self.tx * self.tm.tilewidth
         self.y = self.ty * self.tm.tileheight
@@ -27,12 +34,16 @@ class Tile(Block):
         self.height = self.tm.tileheight
         self.updateChunks()
 
+    #see Block class
     def draw(self, target, offset):
         rx = self.x - offset.x
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx, ry])
-        
+
+#see Tile class for further explanation of some variables used
+#base class for blocks which move (or just aren't constrained by the tile size)   
 class Entity(Block):
+    #entmanager is the imagemanager class for non-tilesize adjusted images in the game
     def __init__(self, world, x, y, width, height, aniset, entmanager):
         Block.__init__(self, world, x, y, width, height, world.nextID())
         self.aniset = aniset
@@ -42,15 +53,20 @@ class Entity(Block):
         self.acc = Vector(0,0)
         self.updateChunks()
 
+    #see Block class (moves the vector)
     def update(self, elapsed):
-        self.vel = self.vel.addVec(self.acc)
-        self.move(self.vel.x, self.vel.y)
+        self.vel = self.vel.addVec(self.acc.mult(elapsed))
+        movevel = self.vel.mult(elapsed)
+        self.move(movevel.x, movevel.y)
 
+    #see Block class
     def draw(self, target, offset):
         rx = self.x - offset.x
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx,ry])
 
+#see Entity/Tile classes for further explanations of some variables used
+#simply checkpoint, if the player is within its hitbox it sets the spawn to the players current coordinates (see Level.setSpawn())
 class Checkpoint(Block):
     def __init__(self, world, x, y, width, height, aniset, entmanager):
         Block.__init__(self, world, x, y, width, height, world.nextID())
@@ -75,6 +91,8 @@ class Checkpoint(Block):
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx,ry])
 
+#see Checkpoint class
+#same as a checkpoint but finishes the level if the player is within its hitbox instead of setting the spawn.
 class FinishLine(Checkpoint):
     def __init__(self, world, x, y, width, height, aniset, entmanager):
         Checkpoint.__init__(self, world, x, y, width, height, aniset, entmanager)
@@ -83,6 +101,8 @@ class FinishLine(Checkpoint):
         if self.world.checkArea(self.x, self.y, self.width, self.height, [], True, ["player"]):
             self.world.finish()
 
+#see Entity/Tile classes for further explanation of variables used
+#essentially an entity block which damages the player if they collide with each other
 class Trap(Block):
     def __init__(self, world, x, y, width, height, aniset, entmanager, damage = 1):
         Block.__init__(self, world, x, y, width, height, world.nextID())
@@ -104,6 +124,8 @@ class Trap(Block):
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx,ry])
 
+#see Trap class
+#a trap block with a circular hitbox
 class CircleTrap(CircleBlock):
     def __init__(self, world, x, y, radius, aniset, entmanager, damage = 1):
         CircleBlock.__init__(self, world, x, y, radius, world.nextID())
@@ -125,7 +147,12 @@ class CircleTrap(CircleBlock):
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx,ry])
 
+#see CircleTrap
+#a saw trap, moves along a given path
 class Saw(CircleTrap):
+    #pos_list is the list of positions the saw will move between
+    #speed is the speed at which the saw will move
+    #radius the the radius of the saws hitbox
     def __init__(self, world, pos_list, speed, radius, aniset, entmanager):
         CircleTrap.__init__(self, world, pos_list[0][0], pos_list[0][1], radius, aniset, entmanager)
         self.speed = speed
@@ -147,6 +174,7 @@ class Saw(CircleTrap):
             self.curdist = 0
             self.nextStep()
 
+    #use if the list of position has been changed, updates the saws path
     def updatePosList(self):
         if len(self.pos_list) > 1:
             self.arg_list = []
@@ -157,6 +185,8 @@ class Saw(CircleTrap):
                 self.arg_list.append(vec.getArg())
                 self.dist_list.append(vec.getMod())
 
+    #moves the saws path on to the next stage
+    #(switches which position its moving towards and sets it to the correct starting location)
     def nextStep(self):
         self.step+=1
         if self.step >= len(self.arg_list):
@@ -184,6 +214,8 @@ class Saw(CircleTrap):
             if self.curdist >= self.dist_list[self.step]:
                 self.nextStep()
 
+#see Tile class
+#basic wall tile, either perminantly solid or is a toggle-wall which can be toggled between solid and non-solid
 class Wall(Tile):
     def __init__(self, world, x, y, aniset, tilemanager, tileid = 0):
         Tile.__init__(self, world, x, y, aniset, tilemanager, tileid)
@@ -220,7 +252,12 @@ class Wall(Tile):
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx, ry])
 
+#essentially a Tile block.
+#button block, related to the door block. if pressed the doors of the same type will open.
 class Button(Block):
+    #direction is the direction the button is facing (default = up, 1 = right, 2 = down, 3 = left)
+    #doorid is the type of door it will open (the colour of the lock/button determine their doorids)
+    #button_lock determins if the button will lock in place once pressed or if it will stop being pressed once nothing is pressing it
     def __init__(self, world, x, y, aniset, tilemanager, direction, doorid = 0, button_lock = False):
         bounds = [0, tilemanager.tile_height - 3, tilemanager.tile_width, 3]
         self.press_bounds = [ (x*tilemanager.tile_width), (y*tilemanager.tile_height) + tilemanager.tile_height - 6, tilemanager.tile_width, 6]
@@ -246,11 +283,13 @@ class Button(Block):
         self.solid = False
         self.updateChunks()
 
+    #switches the button's state to pressed
     def pressButton(self):
         self.pressed = True
         self.aniset.loop("down_"+str(self.direction)+"_"+str(self.doorid))
         self.world.openDoors(self.doorid)
 
+    #switches the button's state to unpressed
     def unpressButton(self):
         self.pressed = False
         self.aniset.loop("up_"+str(self.direction)+"_"+str(self.doorid))
@@ -274,8 +313,12 @@ class Button(Block):
         ry = (self.ty*self.tm.tile_height) - offset.y
         target.blit(self.aniset.get(), [rx, ry])
 
+#essentially a tile block
+#links to a button, toggles between solid and non-solid depending on state of button
 class Door(Block):
-    def __init__(self, world, x, y, aniset, aniset_lock, tilemanager, direction, doorid = 0): #default = up, 1 = right, 2 = down, 3 = left
+    #direction is the direction the door is facing (default = up, 1 = right, 2 = down, 3 = left)
+    #doorid is the door type (see Button __init__)
+    def __init__(self, world, x, y, aniset, aniset_lock, tilemanager, direction, doorid = 0): 
         bounds = [0, 0, tilemanager.tile_width, 12]
         if direction == 1:
             bounds = [tilemanager.tile_width - 12, 0, 12, tilemanager.tile_height]
@@ -300,11 +343,13 @@ class Door(Block):
         self.doorid = doorid
         self.updateChunks()
 
+    #sets the doors state to open
     def closeDoor(self):
         self.open = False
         self.aniset = self.aniset.loop("closed_"+str(self.direction))
         self.solid = True
 
+    #sets the doors state to closed
     def openDoor(self):
         self.open = True
         self.aniset = self.aniset.loop("open_"+str(self.direction))
@@ -323,6 +368,7 @@ class Door(Block):
         if not self.open:
             target.blit(self.aniset_lock.get(), [rx+self.lock_offset[0], ry+self.lock_offset[1]])
 
+#background tile, purely cosmetic.
 class BackgroundTile(Block):
     def __init__(self, world, x, y, aniset, tilemanager, settype = -1):
         Block.__init__(self, world, -100, -100, 0, 0, world.nextID())
@@ -342,8 +388,12 @@ class BackgroundTile(Block):
         ry = self.real_y - offset.y
         target.blit(self.aniset.get(), [rx, ry])
 
-        
+#skull class, essentially an entity
+#drops whenever a player dies (see level.skull_cap for the amount of skulls that can be on the level at once)
+#persitent even through level restarted, can press buttons and be kicked about. Will fall through toggle-walls regardless of their toggles state
 class Skull(Block):
+    #vel is the skulls started velocity
+    #facing_left determines if the skull is facing left or right (purely aesthetic)
     def __init__(self, world, x, y, width, height, aniset, vel, facing_left = True):
         Block.__init__(self, world, x, y, width, height, world.nextID())
         self.facing_left = facing_left
@@ -368,6 +418,7 @@ class Skull(Block):
     def get_priority(self):
         return 4
 
+    #updates the x component of the skulls velocity
     def updateVelX(self):
         self.acc.x = -self.vel.x
         if self.vel.x > 0:
@@ -377,6 +428,7 @@ class Skull(Block):
             self.facing_left = True
             self.aniset.loop("left")
 
+    #hacked together pseudo-physics make it bounce and stuff. Messy and confusing, but it works.
     def update(self, elapsed):
         if self.world.checkArea(self.x+1, self.y, self.width-2, self.height+1, [self], True, None, False, ["player", "toggle_wall"]):
             if self.airborne and self.cds.check("bounce_y"):
@@ -421,13 +473,17 @@ class Skull(Block):
         ry = self.y - offset.y
         target.blit(self.aniset.get(), [rx, ry])
 
-
+#simple spike trap, walk on it an you die. see Trap class
 class Spike(Trap):
     def __init__(self, world, x, y, width, height, aniset, entmanager):
         Trap.__init__(self, world, x, y, width, height, aniset, entmanager, 1)
         self.aniset.loop("on")
 
+#small trap which moves with a velocity, getting destroyed upon coming in to contact with anything solid
+#see Trap and Entity classes
+#(fired out of turrets)
 class Bullet(Trap):
+    #vel is the starting velocity of the bullet
     def __init__(self, world, x, y, width, height, aniset, entmanager, vel):
         Trap.__init__(self, world, x, y, width, height, aniset, entmanager, 1)
         self.aniset.loop("moving")
@@ -443,7 +499,10 @@ class Bullet(Trap):
             if not result[0] or not result[1]:
                 self.dead = True
 
+#trap-tile combo, is by itself just a normal Wall but periodically fires bullets out at a given direction
 class Turret(Tile):
+    #direction is the direction the bullets are fired out (0 = up, 1 = right, 2 = down, 3 = left)
+    #cd_offset is the amount the cooldown for firing the bullets if offset by (to make different turrets fire out of sync)
     def __init__(self, world, x, y, aniset, tilemanager, direction, cd_offset = 0):
         Tile.__init__(self, world, x, y, aniset, tilemanager, 10)
         self.aniset.loop("t"+str(direction))
@@ -473,6 +532,7 @@ class Turret(Tile):
             Bullet(self.world, self.x + self.bul_off[0], self.y + self.bul_off[1], 10, 10, self.world.game.getAniSet("bullet"), self.world.game.entmanager, self.bul_vel.copy())
             self.cds.start()
 
+#the player class. see Entity and Skull classes
 class Player(Entity, Hook):
     def __init__(self, world, x, y, width, height, aniset, entmanager):
         Entity.__init__(self, world, x, y, width, height, aniset, entmanager)
@@ -499,11 +559,13 @@ class Player(Entity, Hook):
     def get_type(self):
         return "player"
 
+    #see Hook class, looks for a jump input
     def call(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w or event.key == pygame.K_UP:
                 self.jump_input = True
 
+    #sorts out player movement, as with skulls its messy and confusing but it works.
     def update(self, elapsed):
         move_block = False
         acc_mod = 1
@@ -622,8 +684,12 @@ class Player(Entity, Hook):
         #self.world.offset.y = self.y + (self.height/2) - (self.world.game.screen.get_height()/2)
 
         
-
+#the main game class, container for all the information about the currently running game
 class Game:
+    #width, height are the width and height of the screen the game is rendered on
+    #tile_sizer is the class used in tilemanager to fit tiles to the required size
+    #chunk_width, chunk_height are the chunk dimensions (see pycol.World class)
+    #background is the background image (unused)
     def __init__(self, width, height, tile_sizer, chunk_width, chunk_height, background):
         self.tilemanager = ImageManager(tile_sizer)
         self.entmanager = ImageManager()
@@ -644,15 +710,21 @@ class Game:
 
         self.game_time = 0
 
+    #reloads the screen, used if the window is changed and needs to be changed back
     def reloadScreen(self):
         self.screen = pygame.display.set_mode((self.width, self.height))
 
+    #adds an animation set to the stored animation sets
     def addAnimationSet(self, name, aniset):
         self.anisets[name] = aniset
 
+    #gets an animation set with the given name
     def getAniSet(self, name):
         return self.anisets[name].copy()
 
+    #loads a level and starts it, level_name and world_name are for save file information,
+    #load_dat is the data to load the level with, load_type is the type of loading to do
+    # (JSON or image, image is not up to date right now so only ever use JSON)
     def loadLevel(self, level_name, world_name, load_dat, load_type, set_level = True):
         self.level_name = level_name
         self.world_name = world_name
@@ -661,10 +733,12 @@ class Game:
             self.setLevel(level)
         return level
 
+    #sets the current level
     def setLevel(self, level):
         self.level = level
         self.level.display = self.screen
 
+    #saves the completion time for the current level (timer is how long it took)
     def save(self, timer):
         timer = math.floor(timer * 1000)
         if self.level_name != None and self.world_name != None:
@@ -683,18 +757,22 @@ class Game:
                 json.dump(data, f)
                 f.close()
 
+    #screen width
     def getWidth(self):
         return self.screen.get_width()
 
+    #screen height
     def getHeight(self):
         return self.screen.get_height()
 
+    #draws and updates the level
     def tick(self, elapsed):
         self.screen.fill([255,255,255])
         #self.screen.blit(self.background, [0,0])
         self.level.tick(elapsed, self.paused)
         pygame.display.flip()
 
+    #adds a hook to an event (see Hook/Player classes)
     def addHook(self, hook, eventtypes):
         if type(eventtypes) != list:
             eventtypes = [eventtypes]
@@ -703,21 +781,28 @@ class Game:
                 self.hooks[eventtype] = []
             self.hooks[eventtype].append(hook)
 
+    #destroys all instances of the hook
     def destroyHook(self, hook):
         for eventtype in self.hooks.keys():
             if hook in self.hooks[eventtype]:
                 self.hooks[eventtype].remove(hook)
 
+    #looks for all hooks for the given event and calls them.
     def call(self, event):
         if event.type in self.hooks.keys():
             hook_list = self.hooks[event.type]
             for hook in hook_list:
                 hook.call(event)
 
-        
+#level class, more complicated version of pycol.World
 class Level(World):
+    #image loading type constants
     IMAGE_LOAD = 0
     JSON_LOAD = 1
+    #game is the Game class for the currently running game
+    #load_dat is the data to load the level with
+    #see pycol.World for information on chunk_width and chunk_height
+    #see Game.loadLevel for information on load_type
     def __init__(self, game, load_dat, chunk_width, chunk_height, load_type = 0):
         World.__init__(self, chunk_width, chunk_height)
         self.load_dat = load_dat
@@ -730,6 +815,7 @@ class Level(World):
         self.spawn_tile = None
         self.restart()
 
+    #kills the player and restarts the level (keeping skulls and respawning you at a checkpoint if you reached one)
     def killPlayer(self):
         if len(self.skulls) < self.skull_limit:
             self.skulls.append(Skull(self, self.player.x+5, self.player.y+1, 11, 12, self.game.getAniSet("player_skull"), self.player.vel, self.player.facing_left))
@@ -742,32 +828,31 @@ class Level(World):
             self.skulls = new_skulls
         self.restart()
 
+    #finishes the game (see FinishLine class)
     def finish(self):
         self.game.paused = True
         self.game.finished = True
         self.game.save(self.level_timer)
 
+    #adds a door to level (so that buttons can see the doors) (see Door class)
     def addDoor(self, door):
         if not door.doorid in self.doors:
             self.doors[door.doorid] = []
         self.doors[door.doorid].append(door)
 
+    #opens all the doors with the given doorid (see Door class)
     def openDoors(self, doorid):
         if str(doorid) in self.doors:
-            #print("OPENING DOORS")
             for door in self.doors[str(doorid)]:
                 door.openDoor()
-        #else:
-        #    print("NO SUCH DOORS EXISTS (",
 
+    #closes all the doors with the given doorid (see Door class)
     def closeDoors(self, doorid):
         if str(doorid) in self.doors:
-            #print("OPENING DOORS")
             for door in self.doors[str(doorid)]:
                 door.closeDoor()
-        #else:
-            #print("NO SUCH DOORS EXIST (", doorid, ")")
 
+    #restarts the level (re-initializes most of the variables and reloads the level from the level-dat)
     def restart(self):
         self.reset()
         self.game.hooks = {}
@@ -794,11 +879,13 @@ class Level(World):
         self.state = 1
         self.respawn()
 
+    #sets the spawn point for the player when the level is restarted (see Checkpoint class)
     def setSpawn(self, spawn_tile):
         if spawn_tile != self.spawn_tile:
             self.spawn = [self.player.x, self.player.y, self.player.vel, self.player.acc]
             self.spawn_tile = spawn_tile
-    
+
+    #respawns the player at the correct spawn (see setSpawn/killPlayer/Checkpoint class)
     def respawn(self):
         if self.spawn != None:
             if self.player != None:
@@ -809,7 +896,8 @@ class Level(World):
             if len(self.spawn) > 2:
                 self.player.vel = self.spawn[2]
                 self.player.acc = self.spawn[3]
-    
+
+    #loads the level from an image, currently not up to date as JSON is vastly superior.
     def load_image(self, map_image):
         for x in range(map_image.get_width()):
             for y in range(map_image.get_height()):
@@ -832,6 +920,7 @@ class Level(World):
         self.map_width = map_image.get_width() * self.game.tilemanager.tile_width
         self.map_height = map_image.get_height() * self.game.tilemanager.tile_height
 
+    #loads the level from a JSON dump (info is a dictionary containing information about the level)
     def load_JSON(self, info):
         self.map_width = info[0] * self.game.tilemanager.tile_width
         self.map_height = info[1] * self.game.tilemanager.tile_height
@@ -918,6 +1007,7 @@ class Level(World):
                                     else:
                                         BackgroundTile(self, x, y, self.game.getAniSet("background"), self.game.tilemanager, iid)
 
+    #updates all the blocks if the game is not paused, draws the blocks regardless.
     def tick(self, elapsed, paused):
         #blockset = self.player.get_blocks()
         #blockset.append(self.player)

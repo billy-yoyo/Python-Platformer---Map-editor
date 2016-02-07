@@ -4,12 +4,13 @@ from pyani import *
 
 pygame.init()
 
+#keeps track of tile_width and tile_height
 class TileSizer:
     def __init__(self, width, height):
         self.tile_width = width
         self.tile_height = height
 
-
+#loads all the resources used by the game (images then animation sets)
 background = pygame.image.load("res/imgs/background.png")
 game = Game(1080, 720, TileSizer(32,32), 100, 100, background)
 game.tilemanager.loadTiles(pygame.image.load("res/imgs/blocks.png"), 5, 1, "blocks")
@@ -79,7 +80,8 @@ for direction in range(4):
 game.addAnimationSet("button", AnimationSet(game.tilemanager, button_anisets))
                                                                
 
-#game.loadLevel(pygame.image.load("map.png"), Level.IMAGE_LOAD)
+#runs the game, mapname is the filename to load the map from
+#level name, world name are the names of the world and level used for saving your record (see level_selector)
 def run(mapname, levelname = None, worldname = None):
     mapname = "res/levels/" + mapname
     game.reloadScreen()
@@ -89,6 +91,7 @@ def run(mapname, levelname = None, worldname = None):
     cur_frames = 0
     last_tick = pygame.time.get_ticks()
     running = True
+    #main loop of the game
     while running and not game.finished:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

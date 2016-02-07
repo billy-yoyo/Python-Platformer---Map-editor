@@ -1,6 +1,10 @@
 import pygame, sys, level_selector, editor_main, math
 pygame.init()
 
+#starting point for the game, doesn't do much but a very simple start menu
+#see editor_main for the level editor
+#see level_selector for the level selector (and forward on to the main game files)
+
 def draw():
     screen = pygame.display.set_mode((background.get_width(), background.get_height()))
     screen.blit(background, [0,0])

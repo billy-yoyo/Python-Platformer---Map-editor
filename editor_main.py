@@ -4,12 +4,14 @@ import game_main
 pygame.init()
 screen = pygame.display.set_mode((1080, 720))
 
-#TODO:
-# use text box to implement saving/loading file names
-# possibly use tkinter (askopenfilename) for a file browser for loading file/images.
-# create a way of loading images (add a button)
-# think of something interesting to do with the remaining space on the UI.
+#I will eventually get around to commenting this file,
+#its pretty messy but I'm actually happy with how I made the interface. It essentially boils down to
+#Tile/Map classes handling the map drawn on the right hand side and
+#Button/ButtonEvent classes handling the interface side
+#pretty much every other class is just overriding buttonevent's functions
+#at the bottom you can see all the buttons being initialized and a list of the sizes and locations of all the buttons on the background image.
 
+#see pyani.ImageManager for an explanation of this class
 class ImageManager:
     def __init__(self, tilemap, iconsize):
         self.tilemap = tilemap
@@ -358,6 +360,7 @@ class Map:
         pygame.draw.rect(target, [0, 0, 0], [ (self.selected[0] * self.tile_width) - offset[0], (self.selected[1] * self.tile_height) - offset[1], self.tile_width, self.tile_height ], 2)
         pygame.draw.rect(target, [0, 0, 0], [ -offset[0], -offset[1], self.width*self.tile_width, self.height*self.tile_height], 2)
 
+#see pyani.Cooldowns for an explanation of this class
 class Cooldowns:
     def __init__(self):
         self.cooldowns = {}
